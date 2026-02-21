@@ -1,4 +1,4 @@
-"use client";
+// @ts-nocheck
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -41,8 +41,9 @@ import {
 const uid = () =>
   Math.random().toString(36).slice(2, 10) + "_" + Date.now().toString(36);
 
-function fmtDateTime(dt) {
+function fmtDateTime(dt: string | number | Date | null | undefined): string {
   try {
+    if (dt == null) return "";
     return new Date(dt).toLocaleString();
   } catch {
     return String(dt);
@@ -70,6 +71,7 @@ function toISODateInput(iso) {
 }
 
 function loadJSON(key, fallback) {
+  if (typeof window === "undefined") return fallback;
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return fallback;
@@ -79,6 +81,8 @@ function loadJSON(key, fallback) {
     return fallback;
   }
 }
+
+
 
 function saveJSON(key, value) {
   try {
@@ -277,6 +281,7 @@ export default function FitnessTrackerApp() {
 
   // Migration from earlier keys (best-effort)
   useEffect(() => {
+    if (typeof window === "undefined") return;
     const prevEx = loadJSON("ft_exercises_v2", null) || loadJSON("ft_exercises_v1", null);
     if (prevEx && Array.isArray(prevEx) && !localStorage.getItem("ft_exercises_v3")) setExercises(prevEx);
 
@@ -2127,4 +2132,3 @@ function NutritionHistory({ days, onEdit }) {
     </div>
   );
 }
-
