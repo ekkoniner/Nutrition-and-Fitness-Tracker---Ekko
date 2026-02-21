@@ -20,8 +20,8 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 ## USDA FoodData API Key
 
-Set `NEXT_PUBLIC_USDA_FDC_API_KEY` in your environment (for Vercel: Project Settings -> Environment Variables).
-The app will use this as the default USDA key and still allow overriding/saving a key in local browser storage.
+Set `USDA_FDC_API_KEY` in your environment (for Vercel: Project Settings -> Environment Variables).
+The app uses a server-side proxy route (`/api/fdc/search`) so the USDA key stays on the server and is not exposed to browser clients.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 

@@ -211,9 +211,6 @@ function calcDayTotals(day) {
 // -------------------------
 // FoodData Central (USDA) helpers
 // -------------------------
-const FDC_BASE = "https://api.nal.usda.gov/fdc";
-const DEFAULT_FDC_API_KEY = process.env.NEXT_PUBLIC_USDA_FDC_API_KEY || "";
-
 function extractMacrosFromFDC(food) {
   const list = Array.isArray(food?.foodNutrients) ? food.foodNutrients : [];
   const find = (needle) =>
@@ -241,16 +238,15 @@ function extractMacrosFromFDC(food) {
   };
 }
 
-async function fdcSearch({ apiKey, query, pageSize = 12 }) {
-  const url = new URL(`${FDC_BASE}/v1/foods/search`);
-  url.searchParams.set("api_key", apiKey);
+async function fdcSearch({ query, pageSize = 12 }) {
+  const url = new URL("/api/fdc/search", window.location.origin);
   url.searchParams.set("query", query);
   url.searchParams.set("pageSize", String(pageSize));
 
-  const res = await fetch(url.toString(), { method: "GET", mode: "cors" });
+  const res = await fetch(url.toString(), { method: "GET" });
   if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Food search failed (${res.status}). ${text}`);
+    const payload = await res.json().catch(() => ({}));
+    throw new Error(payload?.error || `Food search failed (${res.status}).`);
   }
   return res.json();
 }
@@ -358,24 +354,6 @@ export default function FitnessTrackerApp() {
 
   // Nutrition day selection
   const [nutriDate, setNutriDate] = useState(todayISODate);
-
-  // Food API key (stored locally)
-  const [fdcApiKey, setFdcApiKey] = useState(() => {
-    if (typeof window === "undefined") return "";
-    try {
-      return localStorage.getItem("ft_fdc_api_key") || DEFAULT_FDC_API_KEY;
-    } catch {
-      return DEFAULT_FDC_API_KEY;
-    }
-  });
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      localStorage.setItem("ft_fdc_api_key", fdcApiKey);
-    } catch {
-      // ignore
-    }
-  }, [fdcApiKey]);
 
   // -------------------------
   // Workout actions
@@ -1008,11 +986,9 @@ export default function FitnessTrackerApp() {
             </section>
 
             <section className="lg:col-span-7">
-              <Card title="Log foods by meal" subtitle="Manual entry or USDA database search (API key is inside each meal). Macros are per-serving with quantity multipliers.">
+              <Card title="Log foods by meal" subtitle="Manual entry or USDA database search via secure server proxy. Macros are per-serving with quantity multipliers.">
                 <FoodLogger
                   day={selectedDay}
-                  fdcApiKey={fdcApiKey}
-                  onApiKeyChange={setFdcApiKey}
                   onAddFood={addFoodToMeal}
                   onUpdateFood={updateFoodItem}
                   onRemoveFood={removeFoodItem}
@@ -1477,7 +1453,7 @@ function WorkoutHistory({ workouts, onDelete }) {
   );
 }
 
-function FoodLogger({ day, fdcApiKey, onApiKeyChange, onAddFood, onUpdateFood, onRemoveFood, onCopyMeal }) {
+function FoodLogger({ day, onAddFood, onUpdateFood, onRemoveFood, onCopyMeal }) {
   const meals = useMemo(() => day?.meals || emptyMeals(), [day]);
 
   const mealTotals = useMemo(() => {
@@ -1495,8 +1471,6 @@ function FoodLogger({ day, fdcApiKey, onApiKeyChange, onAddFood, onUpdateFood, o
           mealName={mealName}
           meal={meals[mealName]}
           totals={mealTotals[mealName]}
-          fdcApiKey={fdcApiKey}
-          onApiKeyChange={onApiKeyChange}
           onAdd={(item) => onAddFood(mealName, item)}
           onUpdate={(itemId, patch) => onUpdateFood(mealName, itemId, patch)}
           onRemove={(itemId) => onRemoveFood(mealName, itemId)}
@@ -1507,7 +1481,7 @@ function FoodLogger({ day, fdcApiKey, onApiKeyChange, onAddFood, onUpdateFood, o
   );
 }
 
-function MealSection({ mealName, meal, totals, fdcApiKey, onApiKeyChange, onAdd, onUpdate, onRemove, onCopy }) {
+function MealSection({ mealName, meal, totals, onAdd, onUpdate, onRemove, onCopy }) {
   const [openAdd, setOpenAdd] = useState(false);
   const items = (meal?.items || []).map(normalizeFoodItem);
 
@@ -1552,7 +1526,7 @@ function MealSection({ mealName, meal, totals, fdcApiKey, onApiKeyChange, onAdd,
           </div>
           <div>
             <div className="text-sm font-semibold">Search foods (USDA FoodData Central)</div>
-            <FoodSearch apiKey={fdcApiKey} onApiKeyChange={onApiKeyChange} onPick={onAdd} />
+            <FoodSearch onPick={onAdd} />
           </div>
         </div>
       ) : null}
@@ -1733,7 +1707,7 @@ function ManualFoodForm({ onAdd }) {
   );
 }
 
-function FoodSearch({ apiKey, onApiKeyChange, onPick }) {
+function FoodSearch({ onPick }) {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
@@ -1742,16 +1716,11 @@ function FoodSearch({ apiKey, onApiKeyChange, onPick }) {
   async function run() {
     const query = q.trim();
     if (!query) return;
-    if (!apiKey || !String(apiKey).trim()) {
-      setStatus("error");
-      setError("Add your FoodData Central API key to enable search.");
-      return;
-    }
 
     setStatus("loading");
     setError("");
     try {
-      const data = await fdcSearch({ apiKey, query });
+      const data = await fdcSearch({ query });
       const foods = Array.isArray(data?.foods) ? data.foods : [];
       setResults(foods);
       setStatus("idle");
@@ -1763,18 +1732,7 @@ function FoodSearch({ apiKey, onApiKeyChange, onPick }) {
 
   return (
     <div className="mt-2">
-      <div className="rounded-2xl border border-gray-200 bg-white p-3">
-        <div className="text-xs font-medium text-gray-700">USDA FoodData Central API key</div>
-        <input
-          value={apiKey}
-          onChange={(e) => onApiKeyChange?.(e.target.value)}
-          className="mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
-          placeholder="Paste your FDC API key (stored locally)"
-        />
-        <div className="mt-1 text-[11px] text-gray-600">This key is saved in your browser. If search fails, verify the key and network access to api.nal.usda.gov.</div>
-      </div>
-
-      <div className="mt-3 flex gap-2">
+      <div className="flex gap-2">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
