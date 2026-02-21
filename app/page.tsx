@@ -212,6 +212,7 @@ function calcDayTotals(day) {
 // FoodData Central (USDA) helpers
 // -------------------------
 const FDC_BASE = "https://api.nal.usda.gov/fdc";
+const DEFAULT_FDC_API_KEY = process.env.NEXT_PUBLIC_USDA_FDC_API_KEY || "";
 
 function extractMacrosFromFDC(food) {
   const list = Array.isArray(food?.foodNutrients) ? food.foodNutrients : [];
@@ -362,9 +363,9 @@ export default function FitnessTrackerApp() {
   const [fdcApiKey, setFdcApiKey] = useState(() => {
     if (typeof window === "undefined") return "";
     try {
-      return localStorage.getItem("ft_fdc_api_key") || "";
+      return localStorage.getItem("ft_fdc_api_key") || DEFAULT_FDC_API_KEY;
     } catch {
-      return "";
+      return DEFAULT_FDC_API_KEY;
     }
   });
   useEffect(() => {

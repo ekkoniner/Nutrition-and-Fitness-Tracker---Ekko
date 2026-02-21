@@ -18,6 +18,11 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
+## USDA FoodData API Key
+
+Set `NEXT_PUBLIC_USDA_FDC_API_KEY` in your environment (for Vercel: Project Settings -> Environment Variables).
+The app will use this as the default USDA key and still allow overriding/saving a key in local browser storage.
+
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
 ## Learn More
